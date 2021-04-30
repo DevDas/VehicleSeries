@@ -16,6 +16,8 @@ class VEHICLESERIES_API AVehicleBase : public AWheeledVehicle
 
 public:
 
+	AVehicleBase();
+
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	void Forward(float AxisVal);
@@ -26,4 +28,20 @@ public:
 
 	void GearUp();
 	void GearDown();
+	void ToggleCamera();
+	void LookRight(float AxisVal);
+
+protected:
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+		class USceneComponent* AzuiAzimuthComp = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	class USpringArmComponent* SpringArmComp = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	class UCameraComponent* TPPCam = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	class UCameraComponent* FPPCam = nullptr;
 };
