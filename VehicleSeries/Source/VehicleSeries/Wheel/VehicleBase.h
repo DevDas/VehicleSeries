@@ -19,6 +19,7 @@ public:
 	AVehicleBase();
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void Tick(float DeltaTime) override;
 
 	void Forward(float AxisVal);
 	void Steer(float AxisVal);
@@ -34,7 +35,7 @@ public:
 protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-		class USceneComponent* AzuiAzimuthComp = nullptr;
+	class USceneComponent* AzimuthComp = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	class USpringArmComponent* SpringArmComp = nullptr;
@@ -44,4 +45,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	class UCameraComponent* FPPCam = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+		class UAudioComponent* EngineSound = nullptr;
 };

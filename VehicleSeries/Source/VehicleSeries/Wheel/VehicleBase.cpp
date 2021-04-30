@@ -8,15 +8,18 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/AudioComponent.h"
 
 AVehicleBase::AVehicleBase()
 {
-	AzuiAzimuthComp = CreateDefaultSubobject<USceneComponent>(FName("AzuiAzimuthComp"));
-	AzuiAzimuthComp->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-	AzuiAzimuthComp->SetRelativeLocation(FVector(103.408440f, -0.000041f, 95.176765f));
+	PrimaryActorTick.bCanEverTick = true;
+
+	AzimuthComp = CreateDefaultSubobject<USceneComponent>(FName("AzimuthComp"));
+	AzimuthComp->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	AzimuthComp->SetRelativeLocation(FVector(103.408440f, -0.000041f, 95.176765f));
 
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(FName("SpringArmComp"));
-	SpringArmComp->AttachToComponent(AzuiAzimuthComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	SpringArmComp->AttachToComponent(AzimuthComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	SpringArmComp->SetRelativeRotation(FRotator(-14.374288f, 0.000011f, 0.000000f));
 	SpringArmComp->TargetArmLength = 622.156860f;
 	SpringArmComp->bUsePawnControlRotation = false;
@@ -31,6 +34,9 @@ AVehicleBase::AVehicleBase()
 	FPPCam->bAutoActivate = false;
 	FPPCam->SetRelativeLocation(FVector(7.f, -31.f, 120.f));
 	FPPCam->SetRelativeRotation(FRotator(-2.812500f, 0.000000f, 0.000000f));
+
+	EngineSound = CreateDefaultSubobject<UAudioComponent>(FName("EngineSound"));
+	EngineSound->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 }
 
 #pragma region PlayerInput
@@ -112,7 +118,7 @@ void AVehicleBase::ToggleCamera()
 
 void AVehicleBase::LookRight(float AxisVal)
 {
-	if (!FPPCam && !TPPCam && !AzuiAzimuthComp) return;
+	if (!FPPCam && !TPPCam && !AzimuthComp) return;
 
 	if (FPPCam->IsActive())
 	{
@@ -121,7 +127,7 @@ void AVehicleBase::LookRight(float AxisVal)
 	}
 	else
 	{
-		AzuiAzimuthComp->AddLocalRotation(FRotator(0.f, AxisVal * GetWorld()->DeltaTimeSeconds * 50.f, 0.f));
+		AzimuthComp->AddLocalRotation(FRotator(0.f, AxisVal * GetWorld()->DeltaTimeSeconds * 50.f, 0.f));
 	}
 }
 
@@ -136,3 +142,13 @@ void AVehicleBase::GearDown()
 }
 
 #pragma endregion PlayerInput
+
+void AVehicleBase::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (EngineSound)
+	{
+		EngineSound->SetFloatParameter(FName("RPM"), GetVehicleMovementComponent()->GetEngineRotationSpeed());
+	}
+}
