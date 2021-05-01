@@ -13,5 +13,6 @@ UCLASS()
 class VEHICLESERIES_API UFrontWheelBase : public UVehicleWheel
 {
 	GENERATED_BODY()
-	
+
+		UFrontWheelBase();
 };

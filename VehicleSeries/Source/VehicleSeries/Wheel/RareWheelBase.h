@@ -9,9 +9,12 @@
 /**
  * 
  */
+
 UCLASS()
 class VEHICLESERIES_API URareWheelBase : public UVehicleWheel
 {
 	GENERATED_BODY()
-	
+
+
+		URareWheelBase();
 };
