@@ -12,8 +12,10 @@ UFrontWheelBase::UFrontWheelBase()
 	{
 		TireConfig = FrontTireConfig.Object;
 	}
-	SteerAngle = 55.f;
-	ShapeWidth = 18.f;
-	bAffectedByHandbrake = false;
-	LatStiffValue = 20.f;
+	SteerAngle = 45.f;
+	ShapeRadius = 31.f;
+	ShapeWidth = 30.f;
+	bAffectedByHandbrake = true;
+	LatStiffValue = 10.f;
+	LongStiffValue = 1600.f;
 }

@@ -13,6 +13,7 @@ URareWheelBase::URareWheelBase()
 		TireConfig = RareTireConfig.Object;
 	}
 	SteerAngle = 0.f;
-	ShapeWidth = 18.f;
-	LatStiffValue = 20.f;
+	ShapeRadius = 31.f;
+	ShapeWidth = 30.f;
+	LatStiffValue = 10.f;
 }

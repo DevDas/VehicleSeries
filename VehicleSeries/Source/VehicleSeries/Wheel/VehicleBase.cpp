@@ -24,6 +24,11 @@ AVehicleBase::AVehicleBase()
 	SpringArmComp->TargetArmLength = 622.156860f;
 	SpringArmComp->bUsePawnControlRotation = false;
 	SpringArmComp->bInheritRoll = false;
+	SpringArmComp->bEnableCameraLag = true;
+	SpringArmComp->bEnableCameraRotationLag = true;
+	SpringArmComp->CameraLagSpeed = 10.f;
+	SpringArmComp->CameraRotationLagSpeed = 8.f;
+	SpringArmComp->CameraLagMaxDistance = 70.f;
 
 	TPPCam = CreateDefaultSubobject<UCameraComponent>(FName("TPPCam"));
 	TPPCam->AttachToComponent(SpringArmComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
@@ -37,6 +42,24 @@ AVehicleBase::AVehicleBase()
 
 	EngineSound = CreateDefaultSubobject<UAudioComponent>(FName("EngineSound"));
 	EngineSound->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+
+	UWheeledVehicleMovementComponent4W* Vehicle4W = CastChecked<UWheeledVehicleMovementComponent4W>(GetVehicleMovement());
+
+	if (Vehicle4W)
+	{
+		Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->Reset();
+		Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(0.0f, 400.f);
+		Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(1890.0f, 700.f);
+		Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(9000.0f, 400.f);
+
+		Vehicle4W->SteeringCurve.GetRichCurve()->Reset();
+		Vehicle4W->SteeringCurve.GetRichCurve()->AddKey(0.0f, 1.f);
+		Vehicle4W->SteeringCurve.GetRichCurve()->AddKey(20.f, 0.95f);
+		Vehicle4W->SteeringCurve.GetRichCurve()->AddKey(60.f, 0.9f);
+		Vehicle4W->SteeringCurve.GetRichCurve()->AddKey(120.f, 0.7f);
+
+		Vehicle4W->DifferentialSetup.DifferentialType = EVehicleDifferential4W::LimitedSlip_FrontDrive; // Default Is LimitedSliped_4W
+	}
 }
 
 #pragma region PlayerInput
