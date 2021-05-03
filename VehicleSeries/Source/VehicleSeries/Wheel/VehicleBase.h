@@ -20,6 +20,7 @@ public:
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	virtual void Tick(float DeltaTime) override;
+	virtual void BeginPlay() override;
 
 	void Forward(float AxisVal);
 	void Steer(float AxisVal);
@@ -31,6 +32,9 @@ public:
 	void GearDown();
 	void ToggleCamera();
 	void LookRight(float AxisVal);
+
+	void CreateDynamicMaterialBreak();
+	void HandleBreakLights(float Value);
 
 protected:
 
@@ -48,4 +52,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 		class UAudioComponent* EngineSound = nullptr;
+
+	class UMaterialInterface* BreakLightMaterial;
+	TArray<class UMaterialInstanceDynamic*> BreakMaterialsInst;
+
+	bool bIsHandbreakPressed = false;
 };

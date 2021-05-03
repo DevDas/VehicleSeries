@@ -15,7 +15,7 @@ UFrontWheelBase::UFrontWheelBase()
 	SteerAngle = 45.f;
 	ShapeRadius = 31.f;
 	ShapeWidth = 30.f;
-	bAffectedByHandbrake = true;
+	bAffectedByHandbrake = false;
 	LatStiffValue = 10.f;
 	LongStiffValue = 1600.f;
 }

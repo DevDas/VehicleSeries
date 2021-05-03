@@ -9,6 +9,9 @@
 #include "Camera/CameraComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/AudioComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Materials/MaterialInterface.h"
+#include "UObject/ConstructorHelpers.h"
 
 AVehicleBase::AVehicleBase()
 {
@@ -16,23 +19,21 @@ AVehicleBase::AVehicleBase()
 
 	AzimuthComp = CreateDefaultSubobject<USceneComponent>(FName("AzimuthComp"));
 	AzimuthComp->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-	AzimuthComp->SetRelativeLocation(FVector(103.408440f, -0.000041f, 95.176765f));
+	AzimuthComp->SetRelativeLocation(FVector(0.f, 0.f, 75.f));
 
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(FName("SpringArmComp"));
 	SpringArmComp->AttachToComponent(AzimuthComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-	SpringArmComp->SetRelativeRotation(FRotator(-14.374288f, 0.000011f, 0.000000f));
-	SpringArmComp->TargetArmLength = 622.156860f;
+	SpringArmComp->TargetArmLength = 400.f;
 	SpringArmComp->bUsePawnControlRotation = false;
 	SpringArmComp->bInheritRoll = false;
 	SpringArmComp->bEnableCameraLag = true;
 	SpringArmComp->bEnableCameraRotationLag = true;
 	SpringArmComp->CameraLagSpeed = 10.f;
-	SpringArmComp->CameraRotationLagSpeed = 8.f;
-	SpringArmComp->CameraLagMaxDistance = 70.f;
+	SpringArmComp->CameraRotationLagSpeed = 7.f;
+	SpringArmComp->CameraLagMaxDistance = 50.f;
 
 	TPPCam = CreateDefaultSubobject<UCameraComponent>(FName("TPPCam"));
 	TPPCam->AttachToComponent(SpringArmComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-	TPPCam->SetRelativeRotation(FRotator(-8.437481f, 0.000000f, 0.000000f));
 
 	FPPCam = CreateDefaultSubobject<UCameraComponent>(FName("FPPCam"));
 	FPPCam->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
@@ -59,6 +60,12 @@ AVehicleBase::AVehicleBase()
 		Vehicle4W->SteeringCurve.GetRichCurve()->AddKey(120.f, 0.7f);
 
 		Vehicle4W->DifferentialSetup.DifferentialType = EVehicleDifferential4W::LimitedSlip_FrontDrive; // Default Is LimitedSliped_4W
+	}
+
+	ConstructorHelpers::FObjectFinder<UMaterialInterface> BreakMaterial(TEXT("/Game/Vehicle/M_BreakLight_Inst"));
+	if (BreakMaterial.Object)
+	{
+		BreakLightMaterial = BreakMaterial.Object;
 	}
 }
 
@@ -113,6 +120,14 @@ void AVehicleBase::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 void AVehicleBase::Forward(float AxisVal)
 {
 	GetVehicleMovementComponent()->SetThrottleInput(AxisVal);
+	if (AxisVal < 0.f || bIsHandbreakPressed)
+	{
+		HandleBreakLights(1.f);
+	}
+	else
+	{
+		HandleBreakLights(0.f);
+	}
 }
 
 void AVehicleBase::Steer(float AxisVal)
@@ -123,11 +138,13 @@ void AVehicleBase::Steer(float AxisVal)
 void AVehicleBase::HandBrake()
 {
 	GetVehicleMovementComponent()->SetHandbrakeInput(true);
+	bIsHandbreakPressed = true;
 }
 
 void AVehicleBase::ReleaseHandBrake()
 {
 	GetVehicleMovementComponent()->SetHandbrakeInput(false);
+	bIsHandbreakPressed = false;
 }
 
 void AVehicleBase::ToggleCamera()
@@ -166,6 +183,13 @@ void AVehicleBase::GearDown()
 
 #pragma endregion PlayerInput
 
+void AVehicleBase::BeginPlay()
+{
+	Super::BeginPlay();
+
+	CreateDynamicMaterialBreak();
+}
+
 void AVehicleBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -173,5 +197,30 @@ void AVehicleBase::Tick(float DeltaTime)
 	if (EngineSound)
 	{
 		EngineSound->SetFloatParameter(FName("RPM"), GetVehicleMovementComponent()->GetEngineRotationSpeed());
+	}
+}
+
+void AVehicleBase::CreateDynamicMaterialBreak()
+{
+	TArray<UActorComponent*> BreakLights = GetComponentsByTag(UStaticMeshComponent::StaticClass(), FName("BreakLight"));
+	for (auto Component : BreakLights)
+	{
+		UStaticMeshComponent* Light{ Cast<UStaticMeshComponent>(Component) };
+		if (Light)
+		{
+			UMaterialInstanceDynamic* BreakMaterialInst = Light->CreateDynamicMaterialInstance(0, BreakLightMaterial);
+			BreakMaterialsInst.Add(BreakMaterialInst);
+		}
+	}
+}
+
+void AVehicleBase::HandleBreakLights(float Value)
+{
+	for (UMaterialInstanceDynamic* MatInst : BreakMaterialsInst)
+	{
+		if (MatInst)
+		{
+			MatInst->SetScalarParameterValue(FName("Light"), Value);
+		}
 	}
 }
