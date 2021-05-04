@@ -223,7 +223,7 @@ void AVehicleBase::UpdateAirControl(float DeltaTime)
 		FHitResult Hit;
 		bool bInAir = !GetWorld()->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
 		bool bNotGrounded = FVector::DotProduct(GetActorUpVector(), FVector::UpVector) < FlippedThreshold;
-		bool bFliped = FVector::DotProduct(GetActorUpVector(), FVector::UpVector) < -0.89f;
+		bool bSomerSet = FVector::DotProduct(GetActorUpVector(), FVector::UpVector) < -0.89f;
 
 		if (bInAir || bNotGrounded)
 		{
@@ -234,7 +234,7 @@ void AVehicleBase::UpdateAirControl(float DeltaTime)
 				float Steerinput = InputComp->GetAxisValue("Steer");
 				
 				AirMovementForceRoll = !bInAir && bNotGrounded ? 20.f : 3.f;
-				if (bFliped) AirMovementForceRoll = 20.f;
+				if (bSomerSet) AirMovementForceRoll = 20.f;
 
 				if (UPrimitiveComponent* VehicleMesh = Vehicle4W->UpdatedPrimitive)
 				{

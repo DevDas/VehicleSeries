@@ -78,7 +78,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "AirMovement", meta = (ClampMin = "0.1", ClampMax = "0.5"))
 		float FlippedThreshold = 0.2f;
 
-	UPROPERTY(EditAnywhere, Category = "AirMovement")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AirMovement")
 		float AirMovementEffectiveDistance = 200.f;
 
 	UPROPERTY(EditAnywhere)
