@@ -12,6 +12,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Kismet/GameplayStatics.h"
 
 AVehicleBase::AVehicleBase()
 {
@@ -43,8 +44,9 @@ AVehicleBase::AVehicleBase()
 
 	EngineSound = CreateDefaultSubobject<UAudioComponent>(FName("EngineSound"));
 	EngineSound->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	EngineSound->bAutoActivate = false;
 
-	UWheeledVehicleMovementComponent4W* Vehicle4W = CastChecked<UWheeledVehicleMovementComponent4W>(GetVehicleMovement());
+	Vehicle4W = CastChecked<UWheeledVehicleMovementComponent4W>(GetVehicleMovement());
 
 	if (Vehicle4W)
 	{
@@ -66,6 +68,12 @@ AVehicleBase::AVehicleBase()
 	if (BreakMaterial.Object)
 	{
 		BreakLightMaterial = BreakMaterial.Object;
+	}
+
+	ConstructorHelpers::FObjectFinder<USoundBase> EngineBeginSound(TEXT("/Game/Sound/waves/sportscar/start_standard"));
+	if (EngineBeginSound.Object)
+	{
+		EngineStartSound = EngineBeginSound.Object;
 	}
 }
 
@@ -194,9 +202,48 @@ void AVehicleBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	UpdateAirControl(DeltaTime);
+
 	if (EngineSound)
 	{
 		EngineSound->SetFloatParameter(FName("RPM"), GetVehicleMovementComponent()->GetEngineRotationSpeed());
+	}
+}
+
+void AVehicleBase::UpdateAirControl(float DeltaTime)
+{
+	if (Vehicle4W)
+	{
+		FCollisionQueryParams QueryParams;
+		QueryParams.AddIgnoredActor(this);
+
+		FVector TraceStart{ GetActorLocation() + FVector(0.f, 0.f, 50.f) };
+		FVector TraceEnd{ GetActorLocation() - FVector(0.f, 0.f, AirMovementEffectiveDistance) };
+
+		FHitResult Hit;
+		bool bInAir = !GetWorld()->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
+		bool bNotGrounded = FVector::DotProduct(GetActorUpVector(), FVector::UpVector) < FlippedThreshold;
+		bool bFliped = FVector::DotProduct(GetActorUpVector(), FVector::UpVector) < -0.89f;
+
+		if (bInAir || bNotGrounded)
+		{
+			UInputComponent* InputComp = FindComponentByClass<UInputComponent>();
+			if (InputComp)
+			{
+				float ForwadInput = InputComp->GetAxisValue("Forward");
+				float Steerinput = InputComp->GetAxisValue("Steer");
+				
+				AirMovementForceRoll = !bInAir && bNotGrounded ? 20.f : 3.f;
+				if (bFliped) AirMovementForceRoll = 20.f;
+
+				if (UPrimitiveComponent* VehicleMesh = Vehicle4W->UpdatedPrimitive)
+				{
+					FVector MovementVector = FVector(Steerinput * -AirMovementForceRoll, ForwadInput * AirMovementForcePitch, 0.f) * DeltaTime * RotationStrength;
+					FVector NewAngularMovement = GetActorRotation().RotateVector(MovementVector);
+					VehicleMesh->SetPhysicsAngularVelocity(NewAngularMovement, true);
+				}
+			}
+		}
 	}
 }
 
@@ -209,7 +256,10 @@ void AVehicleBase::CreateDynamicMaterialBreak()
 		if (Light)
 		{
 			UMaterialInstanceDynamic* BreakMaterialInst = Light->CreateDynamicMaterialInstance(0, BreakLightMaterial);
-			BreakMaterialsInst.Add(BreakMaterialInst);
+			if (BreakMaterialInst)
+			{
+				BreakMaterialsInst.Add(BreakMaterialInst);
+			}		
 		}
 	}
 }
@@ -223,4 +273,26 @@ void AVehicleBase::HandleBreakLights(float Value)
 			MatInst->SetScalarParameterValue(FName("Light"), Value);
 		}
 	}
+}
+
+void AVehicleBase::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	if (EngineStartSound)
+	{
+		if (!bDebugMute)
+		{
+			FTimerHandle Handle_EngineSound;
+			GetWorld()->GetTimerManager().SetTimer(Handle_EngineSound, this, &AVehicleBase::ActivateEngineSound, 1.5f);
+			UGameplayStatics::PlaySound2D(GetWorld(), EngineStartSound);
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Possessed"))
+}
+
+void AVehicleBase::ActivateEngineSound()
+{ 
+	if (EngineSound) EngineSound->Activate(true);
 }

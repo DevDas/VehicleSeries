@@ -22,6 +22,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
 
+	virtual void PossessedBy(AController* NewController);
+
 	void Forward(float AxisVal);
 	void Steer(float AxisVal);
 
@@ -33,8 +35,11 @@ public:
 	void ToggleCamera();
 	void LookRight(float AxisVal);
 
+	void UpdateAirControl(float DeltaTime);
+
 	void CreateDynamicMaterialBreak();
 	void HandleBreakLights(float Value);
+	void ActivateEngineSound();
 
 protected:
 
@@ -56,5 +61,26 @@ protected:
 	class UMaterialInterface* BreakLightMaterial;
 	TArray<class UMaterialInstanceDynamic*> BreakMaterialsInst;
 
+	class USoundBase* EngineStartSound = nullptr;
+
 	bool bIsHandbreakPressed = false;
+
+	class UWheeledVehicleMovementComponent4W* Vehicle4W = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "AirMovement")
+	float AirMovementForcePitch = 1.8f;
+
+	float AirMovementForceRoll;
+
+	UPROPERTY(EditAnywhere, Category = "AirMovement")
+		float RotationStrength = 100.f;
+
+	UPROPERTY(EditAnywhere, Category = "AirMovement", meta = (ClampMin = "0.1", ClampMax = "0.5"))
+		float FlippedThreshold = 0.2f;
+
+	UPROPERTY(EditAnywhere, Category = "AirMovement")
+		float AirMovementEffectiveDistance = 200.f;
+
+	UPROPERTY(EditAnywhere)
+		bool bDebugMute = true;
 };
