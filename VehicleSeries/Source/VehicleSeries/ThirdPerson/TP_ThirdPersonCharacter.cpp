@@ -159,6 +159,7 @@ void ATP_ThirdPersonCharacter::EnterCar()
 		GetCapsuleComponent()->SetCollisionProfileName("Driving", true);
 		GetMesh()->SetCollisionProfileName("Driving", true);
 		GetMesh()->SetWorldScale3D(FVector(0.9f, 0.9f, 0.9f));
+		GetMesh()->SetRelativeLocation(FVector(0.f, 0.f, -66.f));
 		bInCar = true;
 	}
 }

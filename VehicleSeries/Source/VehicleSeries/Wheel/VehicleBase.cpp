@@ -304,7 +304,6 @@ void AVehicleBase::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	EnableInput(UGameplayStatics::GetPlayerController(GetWorld(), 0));
 	if (EngineStartSound)
 	{
 		if (!bDebugMute)
@@ -320,6 +319,8 @@ void AVehicleBase::UnPossessed()
 {
 	Super::UnPossessed();
 
+	Forward(0.f);
+	Steer(0.f);
 	UE_LOG(LogTemp, Warning, TEXT("UnPossessed"))
 }
 
@@ -346,14 +347,13 @@ void AVehicleBase::ExitVehicle()
 {
 	if (Driver)
 	{
-		Driver->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-		Driver->SetActorLocation(WorldToLocal_Change_LocalToWorld(SitComp->GetComponentLocation(), 0.f, -150.f, 100.f));
+		Driver->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
+		Driver->SetActorLocation(WorldToLocal_Change_LocalToWorld(SitComp->GetComponentLocation(), 0.f, -150.f, 100.f));		
 		Driver->GetCapsuleComponent()->SetCollisionProfileName("Pawn", true);
 		Driver->GetMesh()->SetCollisionProfileName("CharacterMesh", true);
 		Driver->GetMesh()->SetWorldScale3D(FVector(1.f, 1.f, 1.f));
+		Driver->GetMesh()->SetRelativeLocation(FVector(0.f, 0.f, -90.f));
 		Driver->bInCar = false;
-
-		GetController()->DisableInput(UGameplayStatics::GetPlayerController(GetWorld(), 0));
 		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(Driver);
 
 		if (EngineSound) EngineSound->Activate(false);
