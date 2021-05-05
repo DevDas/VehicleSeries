@@ -68,5 +68,15 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+	void CarAvailable(bool IsAvailable, class AVehicleBase* Car);
+
+	class AVehicleBase* OverlappedVehicle;
+	bool bCanPossess = false;
+
+	void EnterCar();
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		bool bInCar = false;
 };
 

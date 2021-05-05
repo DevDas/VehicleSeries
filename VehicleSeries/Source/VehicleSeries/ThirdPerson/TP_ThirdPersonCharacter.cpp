@@ -8,6 +8,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "VehicleSeries/Wheel/VehicleBase.h"
+#include "Kismet/GameplayStatics.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ATP_ThirdPersonCharacter
@@ -74,6 +76,8 @@ void ATP_ThirdPersonCharacter::SetupPlayerInputComponent(class UInputComponent* 
 
 	// VR headset functionality
 	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &ATP_ThirdPersonCharacter::OnResetVR);
+
+	PlayerInputComponent->BindAction("Enter", IE_Pressed, this, &ATP_ThirdPersonCharacter::EnterCar);
 }
 
 
@@ -136,5 +140,25 @@ void ATP_ThirdPersonCharacter::MoveRight(float Value)
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 		// add movement in that direction
 		AddMovementInput(Direction, Value);
+	}
+}
+
+void ATP_ThirdPersonCharacter::CarAvailable(bool IsAvailable, AVehicleBase* Car)
+{
+	bCanPossess = IsAvailable;
+	OverlappedVehicle = Car;
+}
+
+void ATP_ThirdPersonCharacter::EnterCar()
+{
+	if (bCanPossess && OverlappedVehicle)
+	{
+		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(OverlappedVehicle);
+		OverlappedVehicle->Driver = this;
+		GetCapsuleComponent()->AttachToComponent(OverlappedVehicle->GetSitPoint(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		GetCapsuleComponent()->SetCollisionProfileName("Driving", true);
+		GetMesh()->SetCollisionProfileName("Driving", true);
+		GetMesh()->SetWorldScale3D(FVector(0.9f, 0.9f, 0.9f));
+		bInCar = true;
 	}
 }

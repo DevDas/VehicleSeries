@@ -13,6 +13,9 @@
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/BoxComponent.h"
+#include "VehicleSeries/ThirdPerson/TP_ThirdPersonCharacter.h"
+#include "Components/CapsuleComponent.h"
 
 AVehicleBase::AVehicleBase()
 {
@@ -42,9 +45,17 @@ AVehicleBase::AVehicleBase()
 	FPPCam->SetRelativeLocation(FVector(7.f, -31.f, 120.f));
 	FPPCam->SetRelativeRotation(FRotator(-2.812500f, 0.000000f, 0.000000f));
 
+	EnterCollisionComp = CreateDefaultSubobject<UBoxComponent>(FName("EnterCollisionComp"));
+	EnterCollisionComp->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	EnterCollisionComp->SetRelativeLocation(FVector(40.f, 0.f, 100.f));
+	EnterCollisionComp->SetBoxExtent(FVector(75.f, 150.f, 50.f));
+
 	EngineSound = CreateDefaultSubobject<UAudioComponent>(FName("EngineSound"));
 	EngineSound->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	EngineSound->bAutoActivate = false;
+
+	SitComp = CreateDefaultSubobject<USceneComponent>(FName("SitComp"));
+	SitComp->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 
 	Vehicle4W = CastChecked<UWheeledVehicleMovementComponent4W>(GetVehicleMovement());
 
@@ -100,6 +111,7 @@ static void BindPawnInputs()
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("HandBrake", EKeys::SpaceBar));
 
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("Toggle", EKeys::V));
+		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("Exit", EKeys::F));
 	}
 }
 
@@ -123,6 +135,7 @@ void AVehicleBase::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PlayerInputComponent->BindAction("GearDown", IE_Pressed, this, &AVehicleBase::GearDown);
 
 	PlayerInputComponent->BindAction("Toggle", IE_Pressed, this, &AVehicleBase::ToggleCamera);
+	PlayerInputComponent->BindAction("Exit", IE_Pressed, this, &AVehicleBase::ExitVehicle);
 }
 
 void AVehicleBase::Forward(float AxisVal)
@@ -196,6 +209,9 @@ void AVehicleBase::BeginPlay()
 	Super::BeginPlay();
 
 	CreateDynamicMaterialBreak();
+
+	EnterCollisionComp->OnComponentBeginOverlap.AddDynamic(this, &AVehicleBase::OnEnterOverlap);
+	EnterCollisionComp->OnComponentEndOverlap.AddDynamic(this, &AVehicleBase::OnExitOverlap);
 }
 
 void AVehicleBase::Tick(float DeltaTime)
@@ -247,6 +263,8 @@ void AVehicleBase::UpdateAirControl(float DeltaTime)
 	}
 }
 
+#pragma region FX
+
 void AVehicleBase::CreateDynamicMaterialBreak()
 {
 	TArray<UActorComponent*> BreakLights = GetComponentsByTag(UStaticMeshComponent::StaticClass(), FName("BreakLight"));
@@ -275,10 +293,18 @@ void AVehicleBase::HandleBreakLights(float Value)
 	}
 }
 
+void AVehicleBase::ActivateEngineSound()
+{ 
+	if (EngineSound) EngineSound->Activate(true);
+}
+
+#pragma endregion FX
+
 void AVehicleBase::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
+	EnableInput(UGameplayStatics::GetPlayerController(GetWorld(), 0));
 	if (EngineStartSound)
 	{
 		if (!bDebugMute)
@@ -288,11 +314,50 @@ void AVehicleBase::PossessedBy(AController* NewController)
 			UGameplayStatics::PlaySound2D(GetWorld(), EngineStartSound);
 		}
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("Possessed"))
 }
 
-void AVehicleBase::ActivateEngineSound()
-{ 
-	if (EngineSound) EngineSound->Activate(true);
+void AVehicleBase::UnPossessed()
+{
+	Super::UnPossessed();
+
+	UE_LOG(LogTemp, Warning, TEXT("UnPossessed"))
+}
+
+void AVehicleBase::OnEnterOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	ATP_ThirdPersonCharacter* Player{ Cast<ATP_ThirdPersonCharacter>(OtherActor) };
+	if (Player)
+	{
+		Player->CarAvailable(true, this);
+	}
+}
+
+void AVehicleBase::OnExitOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	ATP_ThirdPersonCharacter* Player{ Cast<ATP_ThirdPersonCharacter>(OtherActor) };
+	if (Player)
+	{
+		Player->CarAvailable(false, nullptr);
+	}
+}
+
+void AVehicleBase::ExitVehicle()
+{
+	if (Driver)
+	{
+		Driver->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		Driver->SetActorLocation(WorldToLocal_Change_LocalToWorld(SitComp->GetComponentLocation(), 0.f, -150.f, 100.f));
+		Driver->GetCapsuleComponent()->SetCollisionProfileName("Pawn", true);
+		Driver->GetMesh()->SetCollisionProfileName("CharacterMesh", true);
+		Driver->GetMesh()->SetWorldScale3D(FVector(1.f, 1.f, 1.f));
+		Driver->bInCar = false;
+
+		GetController()->DisableInput(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(Driver);
+
+		if (EngineSound) EngineSound->Activate(false);
+
+		Driver = nullptr;
+	}
 }

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "WheeledVehicle.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "VehicleBase.generated.h"
 
 /**
@@ -23,6 +24,7 @@ public:
 	virtual void BeginPlay() override;
 
 	virtual void PossessedBy(AController* NewController);
+	virtual void UnPossessed();
 
 	void Forward(float AxisVal);
 	void Steer(float AxisVal);
@@ -41,6 +43,9 @@ public:
 	void HandleBreakLights(float Value);
 	void ActivateEngineSound();
 
+	class ATP_ThirdPersonCharacter* Driver = nullptr;
+	class USceneComponent* GetSitPoint() { return SitComp; }
+
 protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -57,6 +62,12 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 		class UAudioComponent* EngineSound = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+		class UBoxComponent* EnterCollisionComp = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+		class USceneComponent* SitComp = nullptr;
 
 	class UMaterialInterface* BreakLightMaterial;
 	TArray<class UMaterialInstanceDynamic*> BreakMaterialsInst;
@@ -83,4 +94,23 @@ protected:
 
 	UPROPERTY(EditAnywhere)
 		bool bDebugMute = true;
+
+	UFUNCTION()
+		void OnEnterOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+			UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UFUNCTION()
+		void OnExitOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	void ExitVehicle();
+
+	FVector WorldToLocal_Change_LocalToWorld(FVector Location, float XChange = 0.f, float YChange = 0.f, float ZChange = 0.f)
+	{
+		FVector LocalCordinate = UKismetMathLibrary::InverseTransformLocation(GetActorTransform(), Location);
+		LocalCordinate.X += XChange;
+		LocalCordinate.Y += YChange;
+		LocalCordinate.Z += ZChange;
+
+		return UKismetMathLibrary::TransformLocation(GetActorTransform(), LocalCordinate);
+	}
 };
