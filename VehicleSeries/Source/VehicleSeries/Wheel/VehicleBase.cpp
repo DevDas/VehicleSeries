@@ -16,6 +16,8 @@
 #include "Components/BoxComponent.h"
 #include "VehicleSeries/ThirdPerson/TP_ThirdPersonCharacter.h"
 #include "Components/CapsuleComponent.h"
+#include "VehicleSeries/VehicleLibrary.h"
+#include "Blueprint/UserWidget.h"
 
 AVehicleBase::AVehicleBase()
 {
@@ -86,6 +88,10 @@ AVehicleBase::AVehicleBase()
 	{
 		EngineStartSound = EngineBeginSound.Object;
 	}
+
+	ConstructorHelpers::FClassFinder<UUserWidget> PlayerUI(TEXT("/Game/HUD/WBP_PlayerUI"));
+	if (!PlayerUI.Class) return;
+	PlayerUIClass = PlayerUI.Class;
 }
 
 #pragma region PlayerInput
@@ -219,6 +225,7 @@ void AVehicleBase::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	UpdateAirControl(DeltaTime);
+	UpdateWheelEffects();
 
 	if (EngineSound)
 	{
@@ -304,6 +311,15 @@ void AVehicleBase::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
+	if (PlayerUIClass)
+	{
+		PlayerHUD = CreateWidget<UUserWidget>(GetWorld(), PlayerUIClass);
+		if (PlayerHUD)
+		{
+			PlayerHUD->AddToViewport();
+		}
+	}
+
 	if (EngineStartSound)
 	{
 		if (!bDebugMute)
@@ -319,9 +335,12 @@ void AVehicleBase::UnPossessed()
 {
 	Super::UnPossessed();
 
-	Forward(0.f);
-	Steer(0.f);
-	UE_LOG(LogTemp, Warning, TEXT("UnPossessed"))
+	if (PlayerHUD)
+	{
+		PlayerHUD->RemoveFromParent();
+	}
+	if (Vehicle4W) Vehicle4W->StopMovementImmediately();
+	if (EngineSound) EngineSound->Stop();
 }
 
 void AVehicleBase::OnEnterOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -348,16 +367,48 @@ void AVehicleBase::ExitVehicle()
 	if (Driver)
 	{
 		Driver->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
-		Driver->SetActorLocation(WorldToLocal_Change_LocalToWorld(SitComp->GetComponentLocation(), 0.f, -150.f, 100.f));		
+		Driver->SetActorLocation(UVehicleLibrary::WorldToLocal_Change_LocalToWorld(this, SitComp->GetComponentLocation(), 0.f, -150.f, 100.f));
 		Driver->GetCapsuleComponent()->SetCollisionProfileName("Pawn", true);
 		Driver->GetMesh()->SetCollisionProfileName("CharacterMesh", true);
 		Driver->GetMesh()->SetWorldScale3D(FVector(1.f, 1.f, 1.f));
 		Driver->GetMesh()->SetRelativeLocation(FVector(0.f, 0.f, -90.f));
 		Driver->bInCar = false;
 		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(Driver);
-
-		if (EngineSound) EngineSound->Activate(false);
-
 		Driver = nullptr;
+	}
+}
+
+bool AVehicleBase::IsVehicleInAir()
+{
+	for (UVehicleWheel* Wheel : Vehicle4W->Wheels)
+	{
+		if (Wheel)
+		{
+			if (!Wheel->IsInAir())
+			{
+				return false;
+			}	
+		}
+	}
+	return true;
+}
+
+void AVehicleBase::UpdateWheelEffects()
+{
+	if (IsVehicleInAir())
+	{
+		bLastTimeTireStatus = true; // Vehicle Was Jumped
+	}
+	else
+	{
+		if (bLastTimeTireStatus)
+		{
+			bLastTimeTireStatus = false;
+			if (UVehicleLibrary::GetMaxSuspensionForce(Vehicle4W) > MaxSpringFoce)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("%f"), UVehicleLibrary::GetMaxSuspensionForce(Vehicle4W))
+				//UGameplayStatics::PlaySoundAtLocation()
+			}
+		}
 	}
 }

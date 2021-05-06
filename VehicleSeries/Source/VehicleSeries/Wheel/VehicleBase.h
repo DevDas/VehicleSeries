@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "WheeledVehicle.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "VehicleBase.generated.h"
 
 /**
@@ -42,6 +41,8 @@ public:
 	void CreateDynamicMaterialBreak();
 	void HandleBreakLights(float Value);
 	void ActivateEngineSound();
+
+	void UpdateWheelEffects();
 
 	class ATP_ThirdPersonCharacter* Driver = nullptr;
 	class USceneComponent* GetSitPoint() { return SitComp; }
@@ -95,6 +96,9 @@ protected:
 	UPROPERTY(EditAnywhere)
 		bool bDebugMute = true;
 
+	UPROPERTY(EditAnywhere, Category = "Drift")
+		float MaxSpringFoce = 500000.f;
+
 	UFUNCTION()
 		void OnEnterOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 			UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -104,13 +108,9 @@ protected:
 
 	void ExitVehicle();
 
-	FVector WorldToLocal_Change_LocalToWorld(FVector Location, float XChange = 0.f, float YChange = 0.f, float ZChange = 0.f)
-	{
-		FVector LocalCordinate = UKismetMathLibrary::InverseTransformLocation(GetActorTransform(), Location);
-		LocalCordinate.X += XChange;
-		LocalCordinate.Y += YChange;
-		LocalCordinate.Z += ZChange;
+	bool IsVehicleInAir();
 
-		return UKismetMathLibrary::TransformLocation(GetActorTransform(), LocalCordinate);
-	}
+	bool bLastTimeTireStatus = false;
+	TSubclassOf<class UUserWidget> PlayerUIClass;
+	class UUserWidget* PlayerHUD;
 };
