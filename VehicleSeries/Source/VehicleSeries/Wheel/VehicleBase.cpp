@@ -18,10 +18,17 @@
 #include "Components/CapsuleComponent.h"
 #include "VehicleSeries/VehicleLibrary.h"
 #include "Blueprint/UserWidget.h"
+#include "PhysicalMaterials\PhysicalMaterial.h"
+#include "Particles/ParticleSystem.h"
+#include "Particles/ParticleSystemComponent.h"
+#include "FrontWheelBase.h"
+#include "RareWheelBase.h"
 
 AVehicleBase::AVehicleBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+#pragma region Components
 
 	AzimuthComp = CreateDefaultSubobject<USceneComponent>(FName("AzimuthComp"));
 	AzimuthComp->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
@@ -58,11 +65,48 @@ AVehicleBase::AVehicleBase()
 
 	SitComp = CreateDefaultSubobject<USceneComponent>(FName("SitComp"));
 	SitComp->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+#pragma endregion Components
+
+#pragma region VehicleMovement
 
 	Vehicle4W = CastChecked<UWheeledVehicleMovementComponent4W>(GetVehicleMovement());
 
 	if (Vehicle4W)
 	{
+		Vehicle4W->Mass = 2500.f;
+
+		TSubclassOf<UFrontWheelBase> FrontWheelClass;
+		TSubclassOf<URareWheelBase> BackWheelClass;
+		ConstructorHelpers::FClassFinder<UFrontWheelBase> FrontWheel(TEXT("/Game/Blueprints/FrontWheel"));
+		ConstructorHelpers::FClassFinder<URareWheelBase> BackWheel(TEXT("/Game/Blueprints/RareWheel"));
+		if (FrontWheel.Class && BackWheel.Class)
+		{
+			FrontWheelClass = FrontWheel.Class;
+			BackWheelClass = BackWheel.Class;
+		}
+
+		FWheelSetup ZERO;
+		FWheelSetup ONE;
+		FWheelSetup TWO;
+		FWheelSetup THREE;
+		ZERO.WheelClass = FrontWheelClass;
+		ONE.WheelClass = FrontWheelClass;
+		TWO.WheelClass = BackWheelClass;
+		THREE.WheelClass = BackWheelClass;
+
+		ZERO.BoneName = FName("Wheel_Front_Left");
+		ONE.BoneName = FName("Wheel_Front_Right");
+		TWO.BoneName = FName("Wheel_Rear_Left");
+		THREE.BoneName = FName("Wheel_Rear_Right");
+
+		TWO.bDisableSteering = THREE.bDisableSteering = true;
+
+		Vehicle4W->WheelSetups.Empty();
+		Vehicle4W->WheelSetups.Add(ZERO);
+		Vehicle4W->WheelSetups.Add(ONE);
+		Vehicle4W->WheelSetups.Add(TWO);
+		Vehicle4W->WheelSetups.Add(THREE);
+
 		Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->Reset();
 		Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(0.0f, 400.f);
 		Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(1890.0f, 700.f);
@@ -77,6 +121,26 @@ AVehicleBase::AVehicleBase()
 		Vehicle4W->DifferentialSetup.DifferentialType = EVehicleDifferential4W::LimitedSlip_FrontDrive; // Default Is LimitedSliped_4W
 	}
 
+#pragma endregion VehicleMovement
+
+#pragma region TireFX 
+
+	TE_FR = CreateDefaultSubobject<UParticleSystemComponent>(FName("TE_FR"));
+	TE_FR->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName("Wheel_Front_Right"));
+
+	TE_FL = CreateDefaultSubobject<UParticleSystemComponent>(FName("TE_FL"));
+	TE_FL->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName("Wheel_Front_Left"));
+
+	TE_BL = CreateDefaultSubobject<UParticleSystemComponent>(FName("TE_BL"));
+	TE_BL->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName("Wheel_Rear_Left"));
+
+	TE_BR = CreateDefaultSubobject<UParticleSystemComponent>(FName("TE_BR"));
+	TE_BR->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName("Wheel_Rear_Right"));
+
+
+#pragma endregion TireFX
+
+#pragma region DefaultObjectSetup
 	ConstructorHelpers::FObjectFinder<UMaterialInterface> BreakMaterial(TEXT("/Game/Vehicle/M_BreakLight_Inst"));
 	if (BreakMaterial.Object)
 	{
@@ -92,6 +156,9 @@ AVehicleBase::AVehicleBase()
 	ConstructorHelpers::FClassFinder<UUserWidget> PlayerUI(TEXT("/Game/HUD/WBP_PlayerUI"));
 	if (!PlayerUI.Class) return;
 	PlayerUIClass = PlayerUI.Class;
+
+#pragma endregion DefaultObjectSetup
+
 }
 
 #pragma region PlayerInput
@@ -218,6 +285,11 @@ void AVehicleBase::BeginPlay()
 
 	EnterCollisionComp->OnComponentBeginOverlap.AddDynamic(this, &AVehicleBase::OnEnterOverlap);
 	EnterCollisionComp->OnComponentEndOverlap.AddDynamic(this, &AVehicleBase::OnExitOverlap);
+
+	TireEmitters.Add(TE_FL);
+	TireEmitters.Add(TE_FR);
+	TireEmitters.Add(TE_BL);
+	TireEmitters.Add(TE_BR);
 }
 
 void AVehicleBase::Tick(float DeltaTime)
@@ -408,6 +480,36 @@ void AVehicleBase::UpdateWheelEffects()
 			{
 				UE_LOG(LogTemp, Warning, TEXT("%f"), UVehicleLibrary::GetMaxSuspensionForce(Vehicle4W))
 				//UGameplayStatics::PlaySoundAtLocation()
+			}
+		}
+	}
+
+	for (size_t Index = 0; Index < UVehicleLibrary::GetPhysicalMaterialsUnderTires(Vehicle4W).Num(); ++Index)
+	{
+		UPhysicalMaterial* ElementAtIndex = UVehicleLibrary::GetPhysicalMaterialsUnderTires(Vehicle4W)[Index];
+		if (ElementAtIndex)
+		{
+			if (Vehicle4W->Wheels[Index]->IsInAir())
+			{
+				TireEmitters[Index]->Deactivate();
+			}
+			else
+			{
+				UParticleSystem* ParticleCurrent = TireEmitterMap.FindRef(ElementAtIndex);
+				if (ParticleCurrent)
+				{
+					if (ParticleCurrent == TireEmitters[Index]->Template)
+					{
+						if (!TireEmitters[Index]->IsActive())
+						{
+							TireEmitters[Index]->Activate();
+						}
+					}
+					else
+					{
+						TireEmitters[Index]->SetTemplate(ParticleCurrent);
+					}
+				}
 			}
 		}
 	}

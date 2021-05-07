@@ -70,6 +70,21 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 		class USceneComponent* SitComp = nullptr;
 
+#pragma region TireFX 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+		class UParticleSystemComponent* TE_FR;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+		class UParticleSystemComponent* TE_FL;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+		class UParticleSystemComponent* TE_BL;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+		class UParticleSystemComponent* TE_BR;
+
+#pragma endregion TireFX
+
 	class UMaterialInterface* BreakLightMaterial;
 	TArray<class UMaterialInstanceDynamic*> BreakMaterialsInst;
 
@@ -113,4 +128,10 @@ protected:
 	bool bLastTimeTireStatus = false;
 	TSubclassOf<class UUserWidget> PlayerUIClass;
 	class UUserWidget* PlayerHUD;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drift")
+		TMap<class UPhysicalMaterial*, class UParticleSystem*> TireEmitterMap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drift")
+	TArray<class UParticleSystemComponent*> TireEmitters;
 };
