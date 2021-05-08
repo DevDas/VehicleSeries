@@ -43,6 +43,7 @@ public:
 	void ActivateEngineSound();
 
 	void UpdateWheelEffects();
+	void SkidDetection();
 
 	class ATP_ThirdPersonCharacter* Driver = nullptr;
 	class USceneComponent* GetSitPoint() { return SitComp; }
@@ -63,6 +64,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 		class UAudioComponent* EngineSound = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+		class UAudioComponent* SkidSFX = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 		class UBoxComponent* EnterCollisionComp = nullptr;
@@ -126,7 +130,10 @@ protected:
 	bool IsVehicleInAir();
 
 	bool bLastTimeTireStatus = false;
+
+	UPROPERTY(EditAnywhere)
 	TSubclassOf<class UUserWidget> PlayerUIClass;
+
 	class UUserWidget* PlayerHUD;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drift")
@@ -134,4 +141,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drift")
 	TArray<class UParticleSystemComponent*> TireEmitters;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+		float SlipVelocityThreshold = 600.f;
+
+	bool bIsSkidding = false;
 };

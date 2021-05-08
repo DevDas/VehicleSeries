@@ -23,6 +23,7 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "FrontWheelBase.h"
 #include "RareWheelBase.h"
+#include "Kismet/KismetMathLibrary.h"
 
 AVehicleBase::AVehicleBase()
 {
@@ -62,6 +63,10 @@ AVehicleBase::AVehicleBase()
 	EngineSound = CreateDefaultSubobject<UAudioComponent>(FName("EngineSound"));
 	EngineSound->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	EngineSound->bAutoActivate = false;
+
+	SkidSFX = CreateDefaultSubobject<UAudioComponent>(FName("SkidSFX"));
+	SkidSFX->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	SkidSFX->bAutoActivate = false;
 
 	SitComp = CreateDefaultSubobject<USceneComponent>(FName("SitComp"));
 	SitComp->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
@@ -152,10 +157,6 @@ AVehicleBase::AVehicleBase()
 	{
 		EngineStartSound = EngineBeginSound.Object;
 	}
-
-	ConstructorHelpers::FClassFinder<UUserWidget> PlayerUI(TEXT("/Game/HUD/WBP_PlayerUI"));
-	if (!PlayerUI.Class) return;
-	PlayerUIClass = PlayerUI.Class;
 
 #pragma endregion DefaultObjectSetup
 
@@ -298,6 +299,7 @@ void AVehicleBase::Tick(float DeltaTime)
 
 	UpdateAirControl(DeltaTime);
 	UpdateWheelEffects();
+	SkidDetection();
 
 	if (EngineSound)
 	{
@@ -484,14 +486,15 @@ void AVehicleBase::UpdateWheelEffects()
 		}
 	}
 
-	for (size_t Index = 0; Index < UVehicleLibrary::GetPhysicalMaterialsUnderTires(Vehicle4W).Num(); ++Index)
+	for (int32 Index = 0; Index < UVehicleLibrary::GetPhysicalMaterialsUnderTires(Vehicle4W).Num(); ++Index)
 	{
 		UPhysicalMaterial* ElementAtIndex = UVehicleLibrary::GetPhysicalMaterialsUnderTires(Vehicle4W)[Index];
 		if (ElementAtIndex)
 		{
 			if (Vehicle4W->Wheels[Index]->IsInAir())
 			{
-				TireEmitters[Index]->Deactivate();
+				TireEmitters[Index]->Deactivate();	
+				UE_LOG(LogTemp, Warning, TEXT("Air"))
 			}
 			else
 			{
@@ -512,5 +515,26 @@ void AVehicleBase::UpdateWheelEffects()
 				}
 			}
 		}
+	}
+}
+
+void AVehicleBase::SkidDetection()
+{
+	if (!SkidSFX) return;
+
+	bool bIsStopped = GetVelocity().SizeSquared2D() < (SlipVelocityThreshold * SlipVelocityThreshold);
+	bool bAreTireSkidding = UVehicleLibrary::CheckSlipThreshold(Vehicle4W, 0.8f, 0.8f);
+	bool bIsInAir = IsVehicleInAir();
+	bool bWantsToSkid = !bIsInAir && !bIsStopped && bAreTireSkidding;
+
+	if (bWantsToSkid && !bIsSkidding)
+	{
+		bIsSkidding = true;
+		SkidSFX->Play();
+	}
+	else if (bIsSkidding && !bWantsToSkid)
+	{
+		bIsSkidding = false;
+		SkidSFX->FadeOut(1.f, 0.f);
 	}
 }
