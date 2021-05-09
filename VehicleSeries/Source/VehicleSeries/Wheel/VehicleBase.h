@@ -134,6 +134,7 @@ protected:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<class UUserWidget> PlayerUIClass;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	class UUserWidget* PlayerHUD;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drift")
@@ -146,4 +147,13 @@ protected:
 		float SlipVelocityThreshold = 600.f;
 
 	bool bIsSkidding = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Race")
+		float StartTime;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Race")
+		float FinishTime;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Race")
+		bool bIsRaceActive = false;
 };
